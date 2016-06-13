@@ -31,7 +31,17 @@ classifiers = [
     # project is in the alpha stage
     'Development Status :: 3 - Alpha',
 
-    # python 3 only
+    # MIT license
+    'License :: OSI Approved :: MIT License',
+
+    # python 2 and 3 supported
+    'Programming Language :: Python :: 2',
+    'Programming Language :: Python :: 2.3',
+    'Programming Language :: Python :: 2.4',
+    'Programming Language :: Python :: 2.5',
+    'Programming Language :: Python :: 2.6',
+    'Programming Language :: Python :: 2.7',
+    'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.0',
     'Programming Language :: Python :: 3.1',
     'Programming Language :: Python :: 3.2',
@@ -39,14 +49,13 @@ classifiers = [
     'Programming Language :: Python :: 3.4',
     'Programming Language :: Python :: 3.5',
     'Programming Language :: Python :: 3.6',
-    'Programming Language :: Python :: 3 :: Only',
 
     # palm trees are for entertainment
     'Topic :: Games/Entertainment'
 ]
 
 # installation requirements
-install_requires = open(os.path.join(setup_dir, 'requirements.txt')).readlines()
+install_requires = open(os.path.join(setup_dir, 'requirements.txt'), mode='r', encoding='utf-8').readlines()
 
 # where to find the version file; also where it will be written if it does not
 # exist
@@ -67,7 +76,7 @@ if not os.path.isfile(version_file):
             logger.error("Error: You need to create at least one annotated tag for this repo")
             sys.exit(1)
         else:
-            version = out.rstrip()
+            version = out.decode('utf-8').rstrip()
             logger.info("Version deterimined: %s", version)
 
             # Create the version.py file
@@ -89,10 +98,12 @@ def get_version():
 # call setup with our project-specific values
 setup(name='refactored-telegram',
       version=get_version(),
-      description='Program for aimed at bringing back the telegram',
+      description='Program aimed at bringing back the telegram',
       author='Edward Petersen',
       author_email="edward.petersen@gmail.com",
       url='https://github.com/timepieces141/refactored-telegram',
+      license='MIT',
+      platforms=['any'],
       package_dir=package_dir,
       packages=packages,
       scripts=scripts,
