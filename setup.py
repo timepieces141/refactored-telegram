@@ -80,16 +80,24 @@ class DynamicVersionSDist(sdist):
     attempt to increment the correct portion of the version. Both will
     write/overwrite the version.py file. If neither are provided, the existing
     version.py file will be used. And in the scenario where neither arguments
-    were given AND no version.py file exists, the repository will be checked for
-    the latest annotated tag and increment the update portion to establish the
-    new version.
+    were given AND no version.py file exists (or if the --dev flag is explicitly
+    used), the repository will be checked for the latest annotated tag and
+    create a "dev" version (ex. 1.0.0.dev8, which is 8 commits past the 1.0.0.
+    version).
     '''
 
     # add our custom options
     user_options = sdist.user_options + [
         ("new-version=", None, "the value to be used when setting the version of the distribution package"),
         ("version-bump=", None, "one of 'major', 'minor', or 'update', defining the portion of the current version (as "
-            "established by the latest git tag) to increment when setting the version of the distribution package")
+            "established by the latest git tag) to increment when setting the version of the distribution package"),
+        ("dev-version", None, "flag this distribution to be versioned using a \"dev\" version (ex. 1.0.0.dev8 is 8 "
+            "commits past the 1.0.0 version)")
+    ]
+
+    # add dev-version to the boolean options
+    boolean_options = sdist.boolean_options + [
+        "dev-version"
     ]
 
     # markdown is ok too
@@ -102,14 +110,22 @@ class DynamicVersionSDist(sdist):
         super().initialize_options()
         self.new_version = None
         self.version_bump = None
+        self.dev_version = False
 
     def run(self):
         '''
         Override the version metadata before running the sdist.
         '''
-        # --new-version takes precedence over --version-bump
+        # --new-version takes top precedence
         if self.new_version:
             self.distribution.metadata.version = self.new_version
+            self.write_version_file()
+            super().run()
+            return
+
+        # --dev-version takes next precedence, when explicitly given
+        if self.dev_version:
+            self.create_dev_version()
             self.write_version_file()
             super().run()
             return
@@ -130,19 +146,69 @@ class DynamicVersionSDist(sdist):
             super().run()
             return
 
-        # if neither was provided, check if there is a version.py file to read
-        # from
+        # if none of these options were provided, check if there is a version.py
+        # file to read from
         if os.path.exists(VERSION_FILE):
             self.read_version_file()
             super().run()
             return
 
-        # and lastly, by default, attempt to increment the update portion of the
-        # current version
-        self.version_bump = "update"
-        self.increment_version()
+        # and lastly, by default, create a "dev" version - "dev" plus the number
+        # of commits past the most recent tag
+        self.create_dev_version()
         self.write_version_file()
         super().run()
+
+    def create_dev_version(self):
+        '''
+        Read the current version from the latest annotated tag (long form) and
+        create a "development" version representing a number of commits
+        *forward* from the latest released/tagged version.
+
+        However, there is a caveat to this one (especially since it is the fail
+        over from *none* of our new options being provided). If the *current*
+        tag represents the current commit (git describe returns 0 commits
+        forward from the tag), then the version will be set as the current
+        version. This means `python setup.py sdist` run on a commit that is the
+        current tag will yield the package that represents *that* version.
+        '''
+        # get the git describe value
+        SETUP_LOGGER.info("Determining the current version through git describe")
+        proc = subprocess.Popen(["git", "describe", "--long"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = proc.communicate()
+
+        # exit if we had trouble running the git describe
+        if err:
+            raise SystemExit(err)
+
+        # parse the current version from the git descrbe
+        git_desc = out.decode().strip()
+        version_match = re.search(r"^(\d+)\.(\d+)\.(\d+)-(\d+)-.*", git_desc)
+        version_list = list(map(int, version_match.groups()))
+        SETUP_LOGGER.info("Current version: %d.%d.%d, with %d additional commits", *version_list)
+
+        # if there are no commits forward of the tag, set the version as the
+        # version from the tag
+        if version_list[3] == 0:
+            SETUP_LOGGER.info("Version for this distribution will be set to the value of the tag: %d.%d.%d",
+                version_list[0], version_list[1], version_list[2])
+            self.distribution.metadata.version = f"{version_list[0]}.{version_list[1]}.{version_list[2]}"
+            return
+
+        # otherwise, we need the number of commits since the last time a MAJOR
+        # release was made
+        proc = subprocess.Popen(["git", "rev-list", f"{version_list[0]}.0.0..HEAD", "--count"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        out, err = proc.communicate()
+
+        # exit if we had trouble running the git rev-list
+        if err:
+            raise SystemExit(err)
+
+        # assemble the dev version
+        commit_count = int(out.decode().strip())
+        dev_version = f"{version_list[0] + 1}.0.0.dev{commit_count}"
+        self.distribution.metadata.version = dev_version
+
 
     def increment_version(self):
         '''
@@ -161,7 +227,7 @@ class DynamicVersionSDist(sdist):
 
         # parse the current version from the git descrbe
         git_desc = out.decode().strip()
-        version_match = re.search(r"^(\d+)\.(\d)\.(\d).*", git_desc)
+        version_match = re.search(r"^(\d+)\.(\d+)\.(\d+).*", git_desc)
         version_list = list(map(int, version_match.groups()))
         SETUP_LOGGER.info("Current version: %d.%d.%d, incrementing the %s portion", *version_list, self.version_bump)
 
