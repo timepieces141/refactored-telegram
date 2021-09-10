@@ -1,6 +1,9 @@
-include requirements.txt
-include testing-requirements.txt
-include tests/*.py
-include tests/run_tests.sh
 include README.md
 include LICENSE
+include requirements.txt
+include testing-requirements.txt
+include tests/pylintrc
+include tests/pytest.ini
+include tests/run_tests.sh
+include tests/.coveragerc
+include tests/*.py

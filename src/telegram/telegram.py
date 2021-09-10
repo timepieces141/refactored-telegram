@@ -3,8 +3,7 @@ This module provides the Telegram.
 '''
 
 
-class Telegram(object):
-
+class Telegram:
     '''
     Telegram encapsulates the pieces and parts of a telegram.
     '''
@@ -23,12 +22,21 @@ class Telegram(object):
 
     @property
     def sender(self):
+        '''
+        Provides access to the sender.
+        '''
         return self._sender
 
     @property
     def recipient(self):
+        '''
+        Provides access to the recipient.
+        '''
         return self._recipient
 
     @property
     def message(self):
+        '''
+        Retrieve the message.
+        '''
         return self._message
